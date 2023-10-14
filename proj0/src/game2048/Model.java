@@ -1,5 +1,12 @@
 package game2048;
 
+import com.google.common.truth.Fact;
+import edu.princeton.cs.algs4.StdOut;
+import net.sf.saxon.expr.Component;
+import org.dom4j.Element;
+import picocli.CommandLine;
+
+import javax.swing.*;
 import java.util.Formatter;
 
 
@@ -127,7 +134,7 @@ public class Model {
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
         // at least one empty board
-        if (emptySpaceExists(b)==true)
+        if (emptySpaceExists(b))
             return true;
         // at least two adjacent tiles with the same value
         // for a certain row
@@ -161,8 +168,75 @@ public class Model {
     public void tilt(Side side) {
         // TODO: Modify this.board (and if applicable, this.score) to account
         // for the tilt to the Side SIDE.
-
-
+        // MergedFlag to avoid multiple merge
+        boolean[][] mergedFlag=new boolean[board.size()+1][board.size()+1];
+        for (int i = 0; i < board.size(); i++) {
+            for (int j = 0; j < board.size(); j++) {
+                mergedFlag[i][j]=false;     //initialization
+            }
+        }
+        // rotate to side of NORTH
+        board.setViewingPerspective(side);
+        for (int row = this.board.size()-2; row >= 0; row--) {
+            for (int col = 0; col < this.board.size(); col++) {
+                // for every element[col][row],
+                // search element[col][k] where from 'this.board.size()-1' to 'row'
+                if (this.board.tile(col,row)==null)
+                    continue;   // if null, do not need to move
+                // record first null place
+                int firstNullPlace=-1;
+                for (int k = this.board.size()-1; k > row ; k--) {
+                    if (this.board.tile(col,k)==null) {
+                        firstNullPlace = k;
+                        break;
+                    }
+                }
+                // check if merge to an empty space is needed
+                boolean isMergeWithEmptySpace = firstNullPlace != this.board.size() - 1 && board.tile(col, firstNullPlace +1)!=null &&
+                        board.tile(col, firstNullPlace +1).value() == board.tile(col, row).value();
+                if (firstNullPlace!=-1&& !mergedFlag[col][firstNullPlace + 1]) {
+                    if (isMergeWithEmptySpace) {
+                        // update score
+                        this.score+=this.board.tile(col,row).value()*2;
+                        // move with merge
+                        board.move(col,firstNullPlace+1,tile(col,row));
+                        mergedFlag[col][firstNullPlace+1]=true;
+                    }
+                    else
+                        // move without merge
+                        board.move(col,firstNullPlace,board.tile(col,row));
+                }
+                // check if merge without empty space space is needed
+                boolean isMergeWithoutEmptySpace = row < board.size()-1 &&
+                        board.tile(col,row)!=null && board.tile(col,row+1)!=null &&
+                        board.tile(col,row).value()==board.tile(col,row+1).value()
+                        && !mergedFlag[col][row + 1] ;
+                if (isMergeWithoutEmptySpace){
+                    board.move(col,row+1,board.tile(col,row));
+                    this.score+=board.tile(col,row+1).value();
+                }
+            }
+        }
+        //move to void empty interval
+        for (int row = 0; row < board.size(); row++) {
+            for (int col = 0; col < board.size(); col++) {
+                if (board.tile(col,row)==null)
+                    continue;
+                // record first null place
+                int firstNullPlace=-1;
+                for (int k = this.board.size()-1; k > row ; k--) {
+                    if (this.board.tile(col,k)==null) {
+                        firstNullPlace = k;
+                        break;
+                    }
+                }
+                if (firstNullPlace != -1){
+                    board.move(col,firstNullPlace,board.tile(col,row));
+                }
+            }
+        }
+        // rotate to original side
+        board.setViewingPerspective(Side.NORTH);
         checkGameOver();
     }
 
